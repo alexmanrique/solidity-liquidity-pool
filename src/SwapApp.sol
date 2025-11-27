@@ -12,11 +12,14 @@ contract SwapApp is Ownable {
     address public V2Router02Address;
     address public UniswapV2FactoryAddress;
     uint256 public feeBasisPoints;
+    mapping(address => bool) public blacklist;
     
     event SwapTokens(address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut);
     event AddLiquidity(address tokenA, address tokenB, uint256 liquidity);
     event RemoveLiquidity(address tokenA, address tokenB, uint256 liquidity);
     event FeeCollected(address token, address owner, uint256 feeAmount);
+    event AddressBlacklisted(address indexed account);
+    event AddressRemovedFromBlacklist(address indexed account);
 
     constructor(address V2Router02_, address UniswapV2Factory_, address owner_)
         Ownable(owner_)
@@ -30,6 +33,9 @@ contract SwapApp is Ownable {
         public
         returns (uint256 amountOut)
     {
+        require(!blacklist[msg.sender], "Address is blacklisted");
+        require(!blacklist[to], "Recipient address is blacklisted");
+        
         IERC20(path[0]).safeTransferFrom(msg.sender, address(this), amountIn);
         IERC20(path[0]).approve(V2Router02Address, amountIn);
         
@@ -64,6 +70,8 @@ contract SwapApp is Ownable {
         uint256 amountBMin_,
         uint256 deadline_
     ) external returns (uint256 liquidity) {
+        require(!blacklist[msg.sender], "Address is blacklisted");
+        
         IERC20(tokenA).safeTransferFrom(msg.sender, address(this), amountIn_ / 2);
         uint256 swapedAmount = swapTokens(amountIn_ / 2, amountOutMin_, path_, address(this), deadline_);
 
@@ -86,6 +94,8 @@ contract SwapApp is Ownable {
         uint256 amountBMin_,
         uint256 deadline_
     ) external {
+        require(!blacklist[msg.sender], "Address is blacklisted");
+        
         address lpTokenAddress = IFactory(UniswapV2FactoryAddress).getPair(tokenA, tokenB);
 
         // First, transfer LP tokens from the user to this contract
@@ -108,5 +118,26 @@ contract SwapApp is Ownable {
     function setFeeBasisPoints(uint256 newFeeBasisPoints) external onlyOwner {
         require(newFeeBasisPoints <= 1000, "Fee cannot exceed 10%");
         feeBasisPoints = newFeeBasisPoints;
+    }
+
+    /**
+     * @notice Adds an address to the blacklist
+     * @param account Address to blacklist
+     */
+    function addToBlacklist(address account) external onlyOwner {
+        require(account != address(0), "Cannot blacklist zero address");
+        require(!blacklist[account], "Address already blacklisted");
+        blacklist[account] = true;
+        emit AddressBlacklisted(account);
+    }
+
+    /**
+     * @notice Removes an address from the blacklist
+     * @param account Address to remove from blacklist
+     */
+    function removeFromBlacklist(address account) external onlyOwner {
+        require(blacklist[account], "Address not blacklisted");
+        blacklist[account] = false;
+        emit AddressRemovedFromBlacklist(account);
     }
 }

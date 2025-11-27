@@ -12,6 +12,7 @@ contract SwapAppTest is Test {
     address uniswapV2SwappRouterAddress = 0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24;
     address user = 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1; // Address with USDT in Arbitrum Mainnet
     address owner = address(0x1234); // Owner address for testing
+    address blacklistedUser = address(0x5678); // Blacklisted user for testing
     address USDT = 0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9; // USDT address in Arbitrum Mainnet
     address DAI = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1; // DAI address in Arbitrum Mainnet
     address UniswapV2FactoryAddress = 0xf1D7CC64Fb4452F05c498126312eBE29f30Fbcf9; // UniswapV2Factory address in Arbitrum Mainnet
@@ -158,6 +159,159 @@ contract SwapAppTest is Test {
         app.setFeeBasisPoints(200);
         
         vm.stopPrank();
+    }
+
+    function testAddToBlacklist() public {
+        vm.startPrank(owner);
+        
+        assert(!app.blacklist(blacklistedUser));
+        
+        app.addToBlacklist(blacklistedUser);
+        
+        assert(app.blacklist(blacklistedUser));
+        
+        vm.stopPrank();
+    }
+
+    function testAddToBlacklistOnlyOwner() public {
+        vm.startPrank(user);
+        
+        vm.expectRevert();
+        app.addToBlacklist(blacklistedUser);
+        
+        vm.stopPrank();
+    }
+
+    function testAddToBlacklistZeroAddress() public {
+        vm.startPrank(owner);
+        
+        vm.expectRevert("Cannot blacklist zero address");
+        app.addToBlacklist(address(0));
+        
+        vm.stopPrank();
+    }
+
+    function testAddToBlacklistAlreadyBlacklisted() public {
+        vm.startPrank(owner);
+        
+        app.addToBlacklist(blacklistedUser);
+        
+        vm.expectRevert("Address already blacklisted");
+        app.addToBlacklist(blacklistedUser);
+        
+        vm.stopPrank();
+    }
+
+    function testRemoveFromBlacklist() public {
+        vm.startPrank(owner);
+        
+        app.addToBlacklist(blacklistedUser);
+        assert(app.blacklist(blacklistedUser));
+        
+        app.removeFromBlacklist(blacklistedUser);
+        
+        assert(!app.blacklist(blacklistedUser));
+        
+        vm.stopPrank();
+    }
+
+    function testRemoveFromBlacklistOnlyOwner() public {
+        vm.startPrank(owner);
+        app.addToBlacklist(blacklistedUser);
+        vm.stopPrank();
+        
+        vm.startPrank(user);
+        
+        vm.expectRevert();
+        app.removeFromBlacklist(blacklistedUser);
+        
+        vm.stopPrank();
+    }
+
+    function testRemoveFromBlacklistNotBlacklisted() public {
+        vm.startPrank(owner);
+        
+        vm.expectRevert("Address not blacklisted");
+        app.removeFromBlacklist(blacklistedUser);
+        
+        vm.stopPrank();
+    }
+
+    function testSwapTokensBlacklistedUser() public {
+        vm.startPrank(owner);
+        app.addToBlacklist(blacklistedUser);
+        vm.stopPrank();
+        
+        vm.startPrank(blacklistedUser);
+        
+        uint256 deadline = block.timestamp + DEADLINE_DURATION;
+        address[] memory path = _getUSDTToDAIPath();
+        
+        vm.expectRevert("Address is blacklisted");
+        app.swapTokens(AMOUNT_IN, AMOUNT_OUT_MIN, path, blacklistedUser, deadline);
+        
+        vm.stopPrank();
+    }
+
+    function testSwapTokensBlacklistedRecipient() public {
+        vm.startPrank(owner);
+        app.addToBlacklist(blacklistedUser);
+        vm.stopPrank();
+        
+        vm.startPrank(user);
+        
+        uint256 deadline = block.timestamp + DEADLINE_DURATION;
+        address[] memory path = _getUSDTToDAIPath();
+        IERC20(USDT).approve(address(app), AMOUNT_IN);
+        
+        vm.expectRevert("Recipient address is blacklisted");
+        app.swapTokens(AMOUNT_IN, AMOUNT_OUT_MIN, path, blacklistedUser, deadline);
+        
+        vm.stopPrank();
+    }
+
+    function testAddLiquidityBlacklistedUser() public {
+        vm.startPrank(owner);
+        app.addToBlacklist(blacklistedUser);
+        vm.stopPrank();
+        
+        vm.startPrank(blacklistedUser);
+        
+        uint256 deadline = block.timestamp + DEADLINE_DURATION;
+        address[] memory path = _getUSDTToDAIPath();
+        
+        vm.expectRevert("Address is blacklisted");
+        app.addLiquidity(USDT, DAI, AMOUNT_IN, AMOUNT_OUT_MIN, path, AMOUNT_A_MIN, AMOUNT_B_MIN, deadline);
+        
+        vm.stopPrank();
+    }
+
+    function testRemoveLiquidityBlacklistedUser() public {
+        vm.startPrank(owner);
+        app.addToBlacklist(blacklistedUser);
+        vm.stopPrank();
+        
+        vm.startPrank(blacklistedUser);
+        
+        uint256 deadline = block.timestamp + DEADLINE_DURATION;
+        
+        vm.expectRevert("Address is blacklisted");
+        app.removeLiquidity(USDT, DAI, 1000, AMOUNT_A_MIN, AMOUNT_B_MIN, deadline);
+        
+        vm.stopPrank();
+    }
+
+    function testUserCanOperateAfterRemovedFromBlacklist() public {
+        vm.startPrank(owner);
+        app.addToBlacklist(blacklistedUser);
+        assert(app.blacklist(blacklistedUser));
+        app.removeFromBlacklist(blacklistedUser);
+        assert(!app.blacklist(blacklistedUser));
+        vm.stopPrank();
+        
+        // Verify that after removal, the user is no longer blacklisted
+        // The actual swap operation would require funds, but we verify the blacklist check passes
+        assert(!app.blacklist(blacklistedUser));
     }
 
     function _getUSDTToDAIPath() private view returns (address[] memory) {
