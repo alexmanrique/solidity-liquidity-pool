@@ -11,8 +11,6 @@ contract SwapApp is Ownable {
     using SafeERC20 for IERC20;
     address public V2Router02Address;
     address public UniswapV2FactoryAddress;
-    address public USDT;
-    address public DAI;
     uint256 public feeBasisPoints;
     
     event SwapTokens(address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut);
@@ -20,13 +18,11 @@ contract SwapApp is Ownable {
     event RemoveLiquidity(address tokenA, address tokenB, uint256 liquidity);
     event FeeCollected(address token, address owner, uint256 feeAmount);
 
-    constructor(address V2Router02_, address USDT_, address DAI_, address UniswapV2Factory_, address owner_)
+    constructor(address V2Router02_, address UniswapV2Factory_, address owner_)
         Ownable(owner_)
     {
         V2Router02Address = V2Router02_;
         UniswapV2FactoryAddress = UniswapV2Factory_;
-        USDT = USDT_;
-        DAI = DAI_;
         feeBasisPoints = 100;
     }
 
@@ -59,6 +55,8 @@ contract SwapApp is Ownable {
     }
 
     function addLiquidity(
+        address tokenA,
+        address tokenB,
         uint256 amountIn_,
         uint256 amountOutMin_,
         address[] calldata path_,
@@ -66,24 +64,29 @@ contract SwapApp is Ownable {
         uint256 amountBMin_,
         uint256 deadline_
     ) external returns (uint256 liquidity) {
-        IERC20(USDT).safeTransferFrom(msg.sender, address(this), amountIn_ / 2);
+        IERC20(tokenA).safeTransferFrom(msg.sender, address(this), amountIn_ / 2);
         uint256 swapedAmount = swapTokens(amountIn_ / 2, amountOutMin_, path_, address(this), deadline_);
 
-        IERC20(USDT).approve(V2Router02Address, amountIn_ / 2);
-        IERC20(DAI).approve(V2Router02Address, swapedAmount);
+        IERC20(tokenA).approve(V2Router02Address, amountIn_ / 2);
+        IERC20(tokenB).approve(V2Router02Address, swapedAmount);
 
         (,, liquidity) = IV2Router02(V2Router02Address)
-            .addLiquidity(USDT, DAI, amountIn_ / 2, swapedAmount, amountAMin_, amountBMin_, msg.sender, deadline_);
+            .addLiquidity(tokenA, tokenB, amountIn_ / 2, swapedAmount, amountAMin_, amountBMin_, msg.sender, deadline_);
 
-        emit AddLiquidity(USDT, DAI, liquidity);
+        emit AddLiquidity(tokenA, tokenB, liquidity);
 
         return liquidity;
     }
 
-    function removeLiquidity(uint256 liquidityAmount_, uint256 amountAMin_, uint256 amountBMin_, uint256 deadline_)
-        external
-    {
-        address lpTokenAddress = IFactory(UniswapV2FactoryAddress).getPair(USDT, DAI);
+    function removeLiquidity(
+        address tokenA,
+        address tokenB,
+        uint256 liquidityAmount_,
+        uint256 amountAMin_,
+        uint256 amountBMin_,
+        uint256 deadline_
+    ) external {
+        address lpTokenAddress = IFactory(UniswapV2FactoryAddress).getPair(tokenA, tokenB);
 
         // First, transfer LP tokens from the user to this contract
         IERC20(lpTokenAddress).safeTransferFrom(msg.sender, address(this), liquidityAmount_);
@@ -93,9 +96,9 @@ contract SwapApp is Ownable {
 
         // Finally, call removeLiquidity which will transfer tokens back to msg.sender
         IV2Router02(V2Router02Address)
-            .removeLiquidity(USDT, DAI, liquidityAmount_, amountAMin_, amountBMin_, msg.sender, deadline_);
+            .removeLiquidity(tokenA, tokenB, liquidityAmount_, amountAMin_, amountBMin_, msg.sender, deadline_);
 
-            emit RemoveLiquidity(USDT, DAI, liquidityAmount_);
+        emit RemoveLiquidity(tokenA, tokenB, liquidityAmount_);
     }
 
     /**

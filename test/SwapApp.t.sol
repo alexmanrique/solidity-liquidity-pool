@@ -25,7 +25,7 @@ contract SwapAppTest is Test {
     uint256 constant FEE_BASIS_POINTS = 100;
 
     function setUp() public {
-        app = new SwapApp(uniswapV2SwappRouterAddress, USDT, DAI, UniswapV2FactoryAddress, owner);
+        app = new SwapApp(uniswapV2SwappRouterAddress, UniswapV2FactoryAddress, owner);
     }
 
     function testHasBeenDeployedCorrectly() public view {
@@ -76,7 +76,7 @@ contract SwapAppTest is Test {
         uint256 usdtBalanceBefore = IERC20(USDT).balanceOf(user);
         uint256 ownerDaiBalanceBefore = IERC20(DAI).balanceOf(owner);
 
-        app.addLiquidity(AMOUNT_IN, AMOUNT_OUT_MIN, path, AMOUNT_A_MIN, AMOUNT_B_MIN, deadline);
+        app.addLiquidity(USDT, DAI, AMOUNT_IN, AMOUNT_OUT_MIN, path, AMOUNT_A_MIN, AMOUNT_B_MIN, deadline);
 
         uint256 usdtBalanceAfter = IERC20(USDT).balanceOf(user);
         uint256 ownerDaiBalanceAfter = IERC20(DAI).balanceOf(owner);
@@ -102,7 +102,7 @@ contract SwapAppTest is Test {
 
         address[] memory path = _getUSDTToDAIPath();
 
-        uint256 liquidity = app.addLiquidity(AMOUNT_IN, AMOUNT_OUT_MIN, path, AMOUNT_A_MIN, AMOUNT_B_MIN, deadline);
+        uint256 liquidity = app.addLiquidity(USDT, DAI, AMOUNT_IN, AMOUNT_OUT_MIN, path, AMOUNT_A_MIN, AMOUNT_B_MIN, deadline);
 
         address lpTokenAddress = IFactory(UniswapV2FactoryAddress).getPair(USDT, DAI);
 
@@ -117,7 +117,7 @@ contract SwapAppTest is Test {
         // Approve SwapApp to transfer LP tokens from user
         IERC20(lpTokenAddress).approve(address(app), liquidity);
 
-        app.removeLiquidity(liquidity, AMOUNT_A_MIN, AMOUNT_B_MIN, deadline);
+        app.removeLiquidity(USDT, DAI, liquidity, AMOUNT_A_MIN, AMOUNT_B_MIN, deadline);
 
         uint256 usdtBalanceAfter = IERC20(USDT).balanceOf(user);
         uint256 daiBalanceAfter = IERC20(DAI).balanceOf(user);
