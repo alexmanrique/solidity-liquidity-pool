@@ -60,7 +60,20 @@ contract SwapAppTest is Test {
         address[] memory path = new address[](2);
         path[0] = USDT;
         path[1] = DAI;
+        
+        uint256 usdtBalanceBefore = IERC20(USDT).balanceOf(user);
+
         app.addLiquidity(amountIn, amountOutMin, path, amountAMin_, amountBMin_, deadline);
+
+        uint256 usdtBalanceAfter = IERC20(USDT).balanceOf(user);
+
+        address lpTokenAddress = IFactory(UniswapV2FactoryAddress).getPair(USDT, DAI);
+        uint256 lpBalance = IERC20(lpTokenAddress).balanceOf(user);
+        
+        assert(lpBalance > 0); 
+
+        assert(usdtBalanceAfter < usdtBalanceBefore); // User should have less USDT 
+
         vm.stopPrank();
     }
 
