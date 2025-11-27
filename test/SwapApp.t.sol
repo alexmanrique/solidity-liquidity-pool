@@ -60,7 +60,7 @@ contract SwapAppTest is Test {
         address[] memory path = new address[](2);
         path[0] = USDT;
         path[1] = DAI;
-        
+
         uint256 usdtBalanceBefore = IERC20(USDT).balanceOf(user);
 
         app.addLiquidity(amountIn, amountOutMin, path, amountAMin_, amountBMin_, deadline);
@@ -69,10 +69,10 @@ contract SwapAppTest is Test {
 
         address lpTokenAddress = IFactory(UniswapV2FactoryAddress).getPair(USDT, DAI);
         uint256 lpBalance = IERC20(lpTokenAddress).balanceOf(user);
-        
-        assert(lpBalance > 0); 
 
-        assert(usdtBalanceAfter < usdtBalanceBefore); // User should have less USDT 
+        assert(lpBalance > 0);
+
+        assert(usdtBalanceAfter < usdtBalanceBefore); // User should have less USDT
 
         vm.stopPrank();
     }
@@ -80,7 +80,7 @@ contract SwapAppTest is Test {
     function testRemoveLiquidityCorrectly() public {
         vm.startPrank(user);
         uint256 amountIn_ = 5 * 1e6;
-       
+
         uint256 amountOutMin_ = 2 * 1e18;
 
         uint256 amountAMin_ = amountIn_ / 2 * 99 / 100;
@@ -91,13 +91,13 @@ contract SwapAppTest is Test {
         address[] memory path = new address[](2);
         path[0] = USDT;
         path[1] = DAI;
-        
+
         uint256 liquidity = app.addLiquidity(amountIn_, amountOutMin_, path, amountAMin_, amountBMin_, deadline);
 
         address lpTokenAddress = IFactory(UniswapV2FactoryAddress).getPair(USDT, DAI);
-        
+
         uint256 liquidityBalance = IERC20(lpTokenAddress).balanceOf(user);
-        
+
         assert(liquidity == liquidityBalance);
 
         uint256 usdtBalanceBefore = IERC20(USDT).balanceOf(user);
@@ -129,5 +129,5 @@ contract SwapAppTest is Test {
         assert(IERC20(lpTokenAddress).balanceOf(address(app)) == 0); // SwapApp should not hold LP tokens
 
         vm.stopPrank();
-    } 
+    }
 }

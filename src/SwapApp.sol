@@ -57,18 +57,19 @@ contract SwapApp {
         return liquidity;
     }
 
-    function removeLiquidity(uint256 liquidityAmount_, uint256 amountAMin_, uint256 amountBMin_, uint256 deadline_) external {
-        
+    function removeLiquidity(uint256 liquidityAmount_, uint256 amountAMin_, uint256 amountBMin_, uint256 deadline_)
+        external
+    {
         address lpTokenAddress = IFactory(UniswapV2FactoryAddress).getPair(USDT, DAI);
 
         // First, transfer LP tokens from the user to this contract
         IERC20(lpTokenAddress).safeTransferFrom(msg.sender, address(this), liquidityAmount_);
-        
+
         // Then approve the router to spend the LP tokens
         IERC20(lpTokenAddress).approve(V2Router02Address, liquidityAmount_);
 
         // Finally, call removeLiquidity which will transfer tokens back to msg.sender
-        IV2Router02(V2Router02Address).removeLiquidity(USDT, DAI, liquidityAmount_, amountAMin_, amountBMin_, msg.sender, deadline_);
-
+        IV2Router02(V2Router02Address)
+            .removeLiquidity(USDT, DAI, liquidityAmount_, amountAMin_, amountBMin_, msg.sender, deadline_);
     }
 }
